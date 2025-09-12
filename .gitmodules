@@ -1,0 +1,3 @@
+[submodule "model_convert/sensevoice"]
+	path = model_convert/sensevoice
+	url = https://github.com/ml-inory/sensevoice.axera.git
