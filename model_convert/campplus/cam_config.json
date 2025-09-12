@@ -1,0 +1,42 @@
+{
+      "input": "output_dir/model.onnx",
+      "output_dir": "campplus_axmodel",
+      "output_name": "campplus.axmodel",
+      "model_type": "ONNX",
+      "npu_mode": "NPU3",
+      "target_hardware": "AX650",
+      "quant": {
+      "input_configs": [
+        {
+          "tensor_name": "feature",
+          "calibration_dataset": "./datasets/feature.tar.gz",
+          "calibration_format": "Numpy",
+          "calibration_size": -1,
+          "calibration_mean": [0],
+          "calibration_std": [1]
+        }
+       
+      ],
+      "layer_configs": [
+          
+          {
+            "start_tensor_names": ["DEFAULT"],
+            "end_tensor_names": ["DEFAULT"],
+            "data_type": "U16"
+          },
+      ],
+      "calibration_method": "MinMax",
+      "enable_smooth_quant": true,
+      #"smooth_quant_strength": 0.1,
+      "conv_bias_data_type": "FP32",
+      "disable_auto_refine_scale": true,
+      "precision_analysis": true,
+      "precision_analysis_method": "EndToEnd",
+      "transformer_opt_level": 1
+    },
+    "compiler": {
+      "check": 0
+    }
+  }
+  
+  

@@ -173,23 +173,23 @@ class Fsmn_vad:
                             os.makedirs(self.datasets_dir)
                         
                         # 保存并打包feats_package
-                        feats_npy = os.path.join(self.datasets_dir, f"feat.npy")
+                        feats_npy = os.path.join(self.datasets_dir, f"speech.npy")
                         np.save(feats_npy, feats_package)
                         
                         # 使用tar打包feats_package
                         import tarfile
-                        tar_path = os.path.join(self.datasets_dir, f"feat.zip")
+                        tar_path = os.path.join(self.datasets_dir, f"speech.tar.gz")
                         with tarfile.open(tar_path, "w:gz") as tar:
                             tar.add(feats_npy, arcname=os.path.basename(feats_npy))
                         
                         # 保存并打包in_cache中的每个缓存数组
                         for i, cache in enumerate(in_cache):
                             # 保存npy文件
-                            cache_npy = os.path.join(self.datasets_dir, f"in_cache_{i}.npy")
+                            cache_npy = os.path.join(self.datasets_dir, f"in_cache{i}.npy")
                             np.save(cache_npy, cache)
                             
                             # 为每个cache创建单独的tar.gz文件
-                            cache_tar = os.path.join(self.datasets_dir, f"in_cache_{i}.tar.gz")
+                            cache_tar = os.path.join(self.datasets_dir, f"in_cache{i}.tar.gz")
                             with tarfile.open(cache_tar, "w:gz") as tar:
                                 tar.add(cache_npy, arcname=os.path.basename(cache_npy))
                         
