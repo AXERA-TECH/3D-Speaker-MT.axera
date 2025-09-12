@@ -1,4 +1,4 @@
-#模型转换
+# 模型转换
 
 ## 创建虚拟环境
 ```
@@ -85,6 +85,9 @@ cd campplus
 pulsar2 build --config cam_config.json
 ```
 模型保存在campplus_axmodel。
+
+### sensevoice模型
+同样参考[sensevoice](https://github.com/ml-inory/sensevoice.axera/tree/main/model_convert)
 
 
 

@@ -20,10 +20,11 @@ import time
 
 def parse_args():
     parser = argparse.ArgumentParser(description="SenseVoice inference script")
-    parser.add_argument("--model_dir", type=str, default="iic/SenseVoiceSmall", help="Path to the model directory")
+    #parser.add_argument("--model_dir", type=str, default="iic/SenseVoiceSmall", help="Path to the model directory")
     parser.add_argument("--output_dir", type=str, default="./output_dir", help="Output directory")
     parser.add_argument("--seq_len", type=int, default=132, help="Sequence length for model") #68 ,132
-    parser.add_argument("--output_timestamp", action="store_true", help="Output timestamps for each word")
+    #parser.add_argument("--output_timestamp", action="store_true", help="Output timestamps for each word")
+	parser.add_argument("--wav_file", type=str, default="wav/vad_example.wav",help="Input wav file")
     parser.add_argument("--ban_emo_unk", action="store_true", help="Ban unknown emotion token")
     return parser.parse_args()
 
@@ -56,7 +57,7 @@ if __name__ == "__main__":
 
 
     # Set up audio file for processing
-    vad_example = ["wav/vad_example.wav"] #S_R004S03C01
+    vad_example = [args.wav_file] #S_R004S03C01
     data_dir = {
         "auto": vad_example
     }
@@ -144,7 +145,7 @@ if __name__ == "__main__":
                         withitn, 
                         position_encoding, 
                         tokenizer=tokenizer,
-                        output_timestamp=args.output_timestamp,
+                        output_timestamp=True,
                         ban_emo_unk=args.ban_emo_unk,
                         output_dir=model_path,
                         key=[f"{os.path.basename(wav_file)}_segment_{i}"]
