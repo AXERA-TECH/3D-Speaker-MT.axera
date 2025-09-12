@@ -1,6 +1,6 @@
 #模型转换
 
-##创建虚拟环境
+## 创建虚拟环境
 ```
 conda create -n 3D-Speaker-MT python=3.10
 conda init
@@ -8,14 +8,14 @@ conda activate 3D-Speaker-MT
 如果失败，source ~/.bashrc 后再 conda activate 3D-Speaker-MT
 ```
 
-##安装依赖
+## 安装依赖
 ```
 pip install -r requiremets.txt
 ```
 
-##导出onnx模型并进行推理
+## 导出onnx模型并进行推理
 
-###vad语音检测模型
+### vad语音检测模型
 ```
 cd vad
 python export_vad_onnx.py
@@ -48,7 +48,7 @@ results:
 [[[70, 2340], [2620, 6200], [6480, 23670], [23950, 26250], [26780, 28990], [29950, 31430], [31750, 37600], [38210, 46900], [47310, 49630], [49910, 56460], [56740, 59540], [59820, 70550]]]
 ```
 
-###声纹识别模型campplus
+### 声纹识别模型campplus
 ```
 cd campplus/
 python export_campplus_onnx.py --model_id iic/speech_campplus_sv_zh_en_16k-common_advanced --experiment_path output_dir --target_onnx_file output_dir/model.onnx
@@ -66,11 +66,11 @@ tensor([0.0572])
 ```
 输出相似度越高表明两端音频属于同一个人的概率越大。
 
-###语音识别模型sensevoice
+### 语音识别模型sensevoice
 参考[sensevoice](https://github.com/ml-inory/sensevoice.axera/tree/main/model_convert)
 seq_len是输入模型的特征长度，此工程demo目前设置为132。
 
-##导出axmodel
+## 导出axmodel
 
 ### vad 模型
 ```
