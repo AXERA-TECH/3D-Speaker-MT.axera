@@ -1,4 +1,5 @@
 #模型转换
+
 ##创建虚拟环境
 ```
 conda create -n 3D-Speaker-MT python=3.10
@@ -6,11 +7,14 @@ conda init
 conda activate 3D-Speaker-MT
 如果失败，source ~/.bashrc 后再 conda activate 3D-Speaker-MT
 ```
+
 ##安装依赖
 ```
 pip install -r requiremets.txt
 ```
+
 ##导出onnx模型并进行推理
+
 ###vad语音检测模型
 ```
 cd vad
@@ -43,6 +47,7 @@ WARNING:root:trust_remote_code: False:  46%|████████████
 results:
 [[[70, 2340], [2620, 6200], [6480, 23670], [23950, 26250], [26780, 28990], [29950, 31430], [31750, 37600], [38210, 46900], [47310, 49630], [49910, 56460], [56740, 59540], [59820, 70550]]]
 ```
+
 ###声纹识别模型campplus
 ```
 cd campplus/
@@ -66,6 +71,7 @@ tensor([0.0572])
 seq_len是输入模型的特征长度，此工程demo目前设置为132。
 
 ##导出axmodel
+
 ### vad 模型
 ```
 cd vad
