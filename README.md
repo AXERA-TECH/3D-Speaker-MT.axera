@@ -1,12 +1,12 @@
 # 3D-Speaker-MT.axera
-meeting transcription demo on Axera
+meeting transcription demo on Axera 
 目前支持 Python 语言
 
 ## 支持平台
  AX650N
 
 ## 模型转换
-[模型转换](https://github.com/AXERA-TECH/3D-Speaker-MT.axera/tree/main/model_convert)
+[模型转换](https://github.com/AXERA-TECH/3D-Speaker-MT.axera/tree/main/model_convert) 
 转换后得到的axmodel拷贝到
 ```
 python/axmodel
@@ -15,13 +15,13 @@ python/axmodel
 ```
 
 ## 上板部署
-AX650N 的设备已预装 Ubuntu22.04
-以 root 权限登陆 AX650N 的板卡设备
-链接互联网，确保 AX650N 的设备能正常执行 apt install, pip install 等指令
-已验证设备：AX650N DEMO Board
+AX650N 的设备已预装 Ubuntu22.04 
+以 root 权限登陆 AX650N 的板卡设备 
+链接互联网，确保 AX650N 的设备能正常执行 apt install, pip install 等指令 
+已验证设备：AX650N DEMO Board 
 
 ## Python API 运行
-在python3.10(验证)
+在python3.10(验证) 
 Requirements
 ```
 pip3 install -r requirements.txt
@@ -51,6 +51,10 @@ AX650N
 | vad | `5.441` |
 | cammplus | `2.907` |
 | sensevoice | `25.482` |
+
+参考：
+[sensevoice.axera](https://github.com/ml-inory/sensevoice.axera/tree/main)
+[3D-Speaker.axera](https://github.com/AXERA-TECH/3D-Speaker.axera/tree/master)
 
 ## 技术讨论
 - Github issues
