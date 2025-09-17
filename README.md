@@ -1,28 +1,9 @@
----
-license: mit
-language:
-- en
-- zh
-pipeline_tag: audio-text-to-text
-base_model:
-- FunAudioLLM/SenseVoiceSmall
-tags:
-- VAD
-- ASR
----
-
-
 # 3D-Speaker-MT.axera
 
 meeting transcription demo on Axera
 
 - [x] Python 示例
 - [ ] C++ 示例
-
-## Convert tools links:
-For those who are interested in model conversion, you can try to export axmodel through the original repo : 
-
-[How to Convert from ONNX to axmodel](https://github.com/AXERA-TECH/3D-Speaker-MT.axera) 
 
 ## 支持平台
 
