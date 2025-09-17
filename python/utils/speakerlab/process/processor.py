@@ -3,7 +3,6 @@
 
 import random
 import pickle
-import torch
 import torchaudio
 import torch.nn.functional as F
 import torchaudio.compliance.kaldi as Kaldi

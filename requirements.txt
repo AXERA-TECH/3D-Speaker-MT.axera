@@ -3,11 +3,5 @@ tqdm
 funasr==1.2.7
 torchaudio
 kaldi_native_fbank
-onnxruntime
-addict
-datasets==3.1.0
-Pillow
-onnx
-onnxsim
 fastcluster
 hdbscan

@@ -2,14 +2,12 @@ import os
 import sys
 import numpy as np
 import torch
-import torchaudio
 
 sys.path.append('%s'%os.path.dirname(__file__))
 
-from speakerlab.utils.builder import build
-from speakerlab.utils.config import Config
 from speakerlab.utils.utils import circle_pad
 from speakerlab.process.processor import FBank
+from utils.cluster_utils import CommonClustering 
 
 import axengine as axe
 
@@ -95,24 +93,6 @@ def distribute_spk(sentence_info, output_field_labels):
             sentence_info_with_spk_merge.append(i)
             
     return sentence_info_with_spk_merge
-def get_cluster_backend():
-    conf = {
-        'cluster':{
-            'obj': 'speakerlab.process.cluster.CommonClustering',
-            'args':{
-                'cluster_type': 'spectral',
-                'mer_cos': 0.8,
-                'min_num_spks': 1,
-                'max_num_spks': 15,
-                'min_cluster_size': 4,
-                'oracle_num': None,
-                'pval': 0.012,
-            }
-        }
-    }
-    config = Config(conf)
-    return build('cluster', config)
-
 
 def chunk(st, ed, dur=1.5, step=0.75):
         chunks = []
@@ -143,11 +123,45 @@ def compressed_seg(seg_list):
     return new_seg_list
 
 def do_clustering(chunks, embeddings, speaker_num=None):
-        cluster = get_cluster_backend()
+
+        # kmeans 和 DBSCAN 聚类效果都不太好，pca降维无法提升聚类速度
+
+        # 对嵌入向量进行降维处理
+        # from sklearn.decomposition import PCA
+        # if embeddings.shape[1] > 50:
+        #     pca = PCA(n_components=50)
+        #     embeddings = pca.fit_transform(embeddings)
+
+        cluster = CommonClustering(
+                cluster_type='spectral',
+                mer_cos=0.8,
+                min_num_spks=1,
+                max_num_spks=15,
+                min_cluster_size=4,
+                oracle_num=None,
+                pval=0.012
+            )
         cluster_labels = cluster(
             embeddings, 
             speaker_num = speaker_num if speaker_num is not None else speaker_num
         )
+
+        # from sklearn.cluster import DBSCAN
+        # from sklearn.neighbors import NearestNeighbors
+        # neigh = NearestNeighbors(n_neighbors=2)
+        # nbrs = neigh.fit(embeddings)
+        # distances, _ = nbrs.kneighbors(embeddings)
+        # distances = np.sort(distances, axis=0)
+        # distances = distances[:,1]
+        # eps = np.percentile(distances, 90)
+        # cluster_labels = DBSCAN(eps=eps, min_samples=5).fit_predict(embeddings)
+
+        # from sklearn.cluster import KMeans
+        # if speaker_num is None:
+        #     # 如果没有提供说话人数量，使用默认值2
+        #     speaker_num = 4
+        # cluster_labels = KMeans(n_clusters=speaker_num, random_state=0, n_init=10).fit_predict(embeddings)
+
         speaker_num = cluster_labels.max()+1
         output_field_labels = [[i[0], i[1], int(j)] for i, j in zip(chunks, cluster_labels)]
         output_field_labels = compressed_seg(output_field_labels)
@@ -156,7 +170,7 @@ def do_clustering(chunks, embeddings, speaker_num=None):
 
 
 class AX_SpeakerEmbeddingInference:
-    def __init__(self, model_dir,  intra_op_num_threads=4):
+    def __init__(self, model_dir):
         """Initialize speaker embedding model for inference"""           
         model_file = os.path.join(model_dir, "campplus.axmodel")
         self.session = axe.InferenceSession(model_file, providers='AxEngineExecutionProvider')
@@ -167,14 +181,21 @@ class AX_SpeakerEmbeddingInference:
         outputs = self.session.run(None, {'feature': feats})
         return outputs[0]
 
-    def __call__(self, wav_file, chunks=None, **kwargs):
+    def __call__(self, wav_file, fs, chunks=None, **kwargs):
         """Process audio file with chunks
         Args:
             wav_file: path to wav file
             chunks: list of [start_time, end_time] in seconds
         """
         # Load wav file
-        wav, fs = torchaudio.load(wav_file)
+        #wav, fs = torchaudio.load(wav_file)
+        # 转换为 PyTorch 张量
+
+        wav = torch.from_numpy(wav_file)
+        
+        # 添加通道维度（如果需要）
+        if len(wav.shape) == 1:
+            wav = wav.unsqueeze(0)
         if wav.shape[0] > 1:
             wav = wav[0:1]  # Convert to mono if stereo
 

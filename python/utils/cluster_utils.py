@@ -1,9 +1,5 @@
-# Copyright 3D-Speaker (https://github.com/alibaba-damo-academy/3D-Speaker). All Rights Reserved.
-# Licensed under the Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
-
 import numpy as np
 import scipy
-import sklearn
 from sklearn.cluster._kmeans import k_means
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -18,7 +14,6 @@ except ImportError:
         "Package \"umap\" or \"hdbscan\" not found. \
         Please install them first by \"pip install umap-learn hdbscan\"."
         )
-
 
 class SpectralCluster:
     """A spectral clustering method using unnormalized Laplacian of affinity matrix.
@@ -165,6 +160,8 @@ class CommonClustering:
         self.cluster_line = cluster_line
         self.min_cluster_size = min_cluster_size
         self.mer_cos = mer_cos
+        
+        # Initialize main cluster
         if self.cluster_type == 'spectral':
             self.cluster = SpectralCluster(**kwargs)
         elif self.cluster_type == 'umap_hdbscan':
@@ -176,16 +173,20 @@ class CommonClustering:
             raise ValueError(
                 '%s is not currently supported.' % self.cluster_type
             )
+            
+        # Initialize short cluster
         if self.cluster_type != 'AHC':
             self.cluster_for_short = AHCluster()
         else:
             self.cluster_for_short = self.cluster
+        
 
     def __call__(self, X, **kwargs):
         # clustering and return the labels
         assert len(X.shape) == 2, 'Shape of input should be [N, C]'
         if X.shape[0] <= 1:
             return np.zeros(X.shape[0], dtype=int)
+
         if X.shape[0] < self.cluster_line:
             labels = self.cluster_for_short(X)
         else:
@@ -193,10 +194,10 @@ class CommonClustering:
 
         # remove extremely minor cluster
         labels = self.filter_minor_cluster(labels, X, self.min_cluster_size)
-        # merge similar  speaker
+
+        # merge similar speaker
         if self.mer_cos is not None:
             labels = self.merge_by_cos(labels, X, self.mer_cos)
-
         return labels
 
     def filter_minor_cluster(self, labels, x, min_cluster_size):
@@ -237,129 +238,3 @@ class CommonClustering:
             c1, c2 = cset[np.array(idx)]
             labels[labels==c2]=c1
         return labels
-
-
-class JointClustering:
-    """Perfom joint clustering for input audio and visual embeddings and output the labels.
-    """
-
-    def __init__(self, audio_cluster, vision_cluster):
-        self.audio_cluster = audio_cluster
-        self.vision_cluster = vision_cluster
-
-    def __call__(self, audioX, visionX, audioT, visionT, conf):
-        # audio-only and video-only clustering
-        alabels = self.audio_cluster(audioX)
-        vlabels = self.vision_cluster(visionX)
-
-        alabels = self.arrange_labels(alabels)
-        vlist, vspk_embs, vspk_dur = self.get_vlist_embs(audioX, alabels, vlabels, audioT, visionT, conf)
-
-        # modify alabels according to vlabels
-        aspk_num = alabels.max()+1
-        for i in range(aspk_num):
-            aspki_index = np.where(alabels==i)[0]
-            aspki_embs = audioX[alabels==i]
-
-            aspkiT_part = np.array(audioT)[alabels==i]
-            overlap_vspk = self.overlap_spks(self.cast_overlap(aspkiT_part), vlist, vspk_dur)
-            if len(overlap_vspk) > 1:
-                centers = np.stack([vspk_embs[s] for s in overlap_vspk])
-                distribute_labels = self.distribute_embs(aspki_embs, centers)
-                for j in range(distribute_labels.max()+1):
-                    for loc in aspki_index[distribute_labels==j]:
-                        alabels[loc] = overlap_vspk[j]
-            elif len(overlap_vspk) == 1:
-                for loc in aspki_index:
-                    alabels[loc] = overlap_vspk[0]
-
-        alabels = self.arrange_labels(alabels)
-        return alabels
-
-    def overlap_spks(self, times, vlist, vspk_dur=None):
-        # get the vspk that overlaps with times.
-        overlap_dur = {}
-        for [a_st, a_ed] in times:
-            for [v_st, v_ed, v_id] in vlist:
-                if a_ed > v_st and v_ed > a_st:
-                    if v_id not in overlap_dur:
-                        overlap_dur[v_id]=0
-                    overlap_dur[v_id] += min(a_ed, v_ed) - max(a_st, v_st)
-        vspk_list = []
-        for v_id, dur in overlap_dur.items():
-            # set the criteria for confirming overlap.
-            if (vspk_dur is None and dur > 0.5) or (vspk_dur is not None and dur > min(vspk_dur[v_id]*0.5, 0.5)):
-                vspk_list.append(v_id)
-        return vspk_list
-
-    def distribute_embs(self, embs, centers):
-        # embs: [n, D]. centers: [k, D]
-        norm_centers = centers / np.linalg.norm(centers, axis=1, keepdims=True)
-        norm_embs = embs / np.linalg.norm(embs, axis=1, keepdims=True)
-        similarity = np.matmul(norm_embs, norm_centers.T) # [n, k]
-        argsort = np.argsort(similarity, axis=-1)
-        return argsort[:, -1]
-
-    def get_vlist_embs(self, audioX, alabels, vlabels, audioT, visionT, conf):
-        assert len(vlabels) == len(visionT)
-        vlist = []
-        for i, ti in enumerate(visionT):
-            if len(vlist)==0 or vlabels[i] != vlist[-1][2] or ti - visionT[i-1] > conf.face_det_stride*0.04 + 1e-4:
-                if len(vlist) > 0 and vlist[-1][1] - vlist[-1][0] < 1e-4:
-                    # remove too short intervals. 
-                    vlist.pop()
-                vlist.append([ti, ti, vlabels[i]])
-            else:
-                vlist[-1][1] = ti
-
-        # adjust vision labels
-        vlabels_arrange = self.arrange_labels([i[2] for i in vlist], a_st=alabels.max()+1)
-        vlist = [[i[0], i[1], j] for i, j in zip(vlist, vlabels_arrange)]
-
-        # get audio spk embs aligning with 'vlist'
-        vspk_embs = {}
-        for [v_st, v_ed, v_id] in vlist:
-            for i, [a_st, a_ed] in enumerate(audioT):
-                if a_ed >= v_st and v_ed >= a_st:
-                    if min(a_ed, v_ed) - max(a_st, v_st) > 1:
-                        if v_id not in vspk_embs:
-                            vspk_embs[v_id] = []
-                        vspk_embs[v_id].append(audioX[i])
-        for k in vspk_embs:
-            vspk_embs[k] = np.stack(vspk_embs[k]).mean(0)
-
-        vlist_new = []
-        for i in vlist:
-            if i[2] in vspk_embs:
-                vlist_new.append(i)
-        # get duration of v_spk
-        vspk_dur = {}
-        for i in vlist_new:
-            if i[2] not in vspk_dur:
-                vspk_dur[i[2]]=0
-            vspk_dur[i[2]] += i[1]-i[0]
-
-        return vlist_new, vspk_embs, vspk_dur
-
-    def cast_overlap(self, input_time):
-        if len(input_time)==0:
-            return input_time
-        output_time = []
-        for i in range(0, len(input_time)-1):
-            if i == 0 or output_time[-1][1] < input_time[i][0]:
-                output_time.append(input_time[i])
-            else:
-                output_time[-1][1] = input_time[i][1]
-        return output_time
-
-    def arrange_labels(self, labels, a_st=0):
-        # arrange labels in order from 0.
-        new_labels = []
-        labels_dict = {}
-        idx = a_st
-        for i in labels:
-            if i not in labels_dict:
-                labels_dict[i] = idx
-                idx += 1
-            new_labels.append(labels_dict[i])
-        return np.array(new_labels)

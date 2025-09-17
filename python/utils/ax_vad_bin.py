@@ -5,21 +5,15 @@
 import os.path
 from typing import List,  Tuple
 
-import librosa
 import numpy as np
 
-from utils.utils.utils import ONNXRuntimeError, get_logger, read_yaml
+from utils.utils.utils import  read_yaml
 from utils.utils.frontend import WavFrontend
 from utils.utils.e2e_vad import E2EVadModel
 import axengine as axe
 
-logging = get_logger()
-
-print("vad_bin.py is loaded")
-
 class AX_Fsmn_vad:
-    def __init__(self, model_dir, batch_size=1, device_id="-1", 
-                    intra_op_num_threads=4, max_end_sil=None):
+    def __init__(self, model_dir, batch_size=1, max_end_sil=None):
             """Initialize VAD model for inference"""
             
             # Export model if needed
@@ -70,8 +64,8 @@ class AX_Fsmn_vad:
         """Process audio file with sliding window approach"""
         # Load audio and prepare data
         # waveform = self.load_wav(wav_file)
-        waveform, _ = librosa.load(wav_file, sr=16000)
-        waveform_list = [waveform]
+        # waveform, _ = librosa.load(wav_file, sr=16000)
+        waveform_list = [wav_file]
         waveform_nums = len(waveform_list)
         is_final = kwargs.get("kwargs", False)
         segments = [[]] * self.batch_size
@@ -86,71 +80,66 @@ class AX_Fsmn_vad:
             in_cache = param_dict.get("in_cache", list())
             in_cache = self.prepare_cache(in_cache)
 
-            try:
-                t_offset = 0
-                step = int(min(feats_len.max(), 6000))
-                for t_offset in range(0, int(feats_len), min(step, feats_len - t_offset)):
-                    if t_offset + step >= feats_len - 1:
-                        step = feats_len - t_offset
-                        is_final = True
-                    else:
-                        is_final = False
+            t_offset = 0
+            step = int(min(feats_len.max(), 6000))
+            for t_offset in range(0, int(feats_len), min(step, feats_len - t_offset)):
+                if t_offset + step >= feats_len - 1:
+                    step = feats_len - t_offset
+                    is_final = True
+                else:
+                    is_final = False
 
-                    # Extract feature segment
-                    feats_package = feats[:, t_offset:int(t_offset + step), :]
+                # Extract feature segment
+                feats_package = feats[:, t_offset:int(t_offset + step), :]
 
-                    # Pad if it's the final segment
-                    if is_final:
-                        pad_length = 6000 - int(step)
-                        feats_package = np.pad(
-                            feats_package,
-                            ((0, 0), (0, pad_length), (0, 0)),
+                # Pad if it's the final segment
+                if is_final:
+                    pad_length = 6000 - int(step)
+                    feats_package = np.pad(
+                        feats_package,
+                        ((0, 0), (0, pad_length), (0, 0)),
+                        mode='constant',
+                        constant_values=0
+                    )
+
+                # Extract corresponding waveform segment
+                waveform_package = waveform[
+                    :,
+                    t_offset * 160:min(waveform.shape[-1], (int(t_offset + step) - 1) * 160 + 400),
+                ]
+
+                # Pad waveform if it's the final segment
+                if is_final:
+                    expected_wave_length = 6000 * 160 + 240
+                    current_wave_length = waveform_package.shape[-1]
+                    pad_wave_length = expected_wave_length - current_wave_length
+                    if pad_wave_length > 0:
+                        waveform_package = np.pad(
+                            waveform_package,
+                            ((0, 0), (0, pad_wave_length)),
                             mode='constant',
                             constant_values=0
                         )
 
-                    # Extract corresponding waveform segment
-                    waveform_package = waveform[
-                        :,
-                        t_offset * 160:min(waveform.shape[-1], (int(t_offset + step) - 1) * 160 + 400),
-                    ]
+                # Run inference
+                inputs = [feats_package]
+                inputs.extend(in_cache)
+                scores, out_caches = self.infer(inputs)
+                in_cache = out_caches
+                
+                # Get VAD segments for this chunk
+                segments_part = vad_scorer(
+                    scores,
+                    waveform_package,
+                    is_final=is_final,
+                    max_end_sil=self.max_end_sil,
+                    online=False,
+                )
 
-                    # Pad waveform if it's the final segment
-                    if is_final:
-                        expected_wave_length = 6000 * 160 + 240
-                        current_wave_length = waveform_package.shape[-1]
-                        pad_wave_length = expected_wave_length - current_wave_length
-                        if pad_wave_length > 0:
-                            waveform_package = np.pad(
-                                waveform_package,
-                                ((0, 0), (0, pad_wave_length)),
-                                mode='constant',
-                                constant_values=0
-                            )
-
-                    # Run inference
-                    inputs = [feats_package]
-                    inputs.extend(in_cache)
-                    scores, out_caches = self.infer(inputs)
-                    in_cache = out_caches
-                    
-                    # Get VAD segments for this chunk
-                    segments_part = vad_scorer(
-                        scores,
-                        waveform_package,
-                        is_final=is_final,
-                        max_end_sil=self.max_end_sil,
-                        online=False,
-                    )
-
-                    # Accumulate segments
-                    if segments_part:
-                        for batch_num in range(0, self.batch_size):
-                            segments[batch_num] += segments_part[batch_num]
-
-            except ONNXRuntimeError:
-                print("Input wav is silence or noise")
-                segments = ""
+                # Accumulate segments
+                if segments_part:
+                    for batch_num in range(0, self.batch_size):
+                        segments[batch_num] += segments_part[batch_num]
 
         return segments
 
