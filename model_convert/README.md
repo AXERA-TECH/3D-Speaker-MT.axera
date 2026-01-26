@@ -1,11 +1,10 @@
 # 模型转换
 
 ## 创建虚拟环境
+已验证环境：python3.10
 ```
-conda create -n 3D-Speaker-MT python=3.10
-conda init
-conda activate 3D-Speaker-MT
-如果失败，source ~/.bashrc 后再 conda activate 3D-Speaker-MT
+python3.10 -m venv 3D-Speaker-MT
+source 3D-Speaker-MT/bin/activate
 ```
 
 ## 安装依赖
